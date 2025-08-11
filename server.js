@@ -41,3 +41,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Dev server listening on http://localhost:${PORT}`);
 });
+app.get('/webhook', (_req, res) => res.status(200).send('OK'));
