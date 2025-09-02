@@ -48,3 +48,46 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+// api/webhook.js
+const crypto = require('node:crypto');
+
+module.exports = async function handler(req, res) {
+  try {
+    if (req.method === 'GET') {
+      return res.status(200).send('OK');
+    }
+    if (req.method !== 'POST') {
+      return res.setHeader('Allow', 'GET, POST').status(405).end();
+    }
+
+    // raw body
+    const chunks = [];
+    for await (const c of req) chunks.push(c);
+    const rawBody = Buffer.concat(chunks);
+
+    // （任意）署名検証
+    const secret = process.env.LINE_CHANNEL_SECRET;
+    if (secret) {
+      const sig = req.headers['x-line-signature'];
+      if (!sig) return res.status(400).send('Missing signature');
+      const hmac = crypto.createHmac('sha256', secret).update(rawBody).digest('base64');
+      if (sig !== hmac) return res.status(401).send('Invalid signature');
+    }
+
+    // JSON パース
+    let body = {};
+    if (rawBody.length) {
+      try {
+        body = JSON.parse(rawBody.toString('utf8'));
+      } catch {
+        return res.status(400).send('Invalid JSON');
+      }
+    }
+
+    // TODO: body.events の処理
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error('Webhook error:', err);
+    return res.status(500).send('Internal Server Error');
+  }
+};
